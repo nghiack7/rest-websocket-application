@@ -1,0 +1,590 @@
+basePath: /api
+definitions:
+  apperrors.AppError:
+    properties:
+      message:
+        type: string
+      type:
+        $ref: '#/definitions/apperrors.ErrorType'
+    type: object
+  apperrors.ErrorType:
+    enum:
+    - BAD_REQUEST
+    - NOT_FOUND
+    - UNAUTHORIZED
+    - FORBIDDEN
+    - CONFLICT
+    - INTERNAL_SERVER_ERROR
+    type: string
+    x-enum-varnames:
+    - BadRequest
+    - NotFound
+    - Unauthorized
+    - Forbidden
+    - Conflict
+    - InternalServer
+  dtos.CreateTaskInput:
+    properties:
+      assignee_id:
+        type: string
+      creator_id:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      title:
+        type: string
+    required:
+    - assignee_id
+    - creator_id
+    - due_date
+    - title
+    type: object
+  dtos.EmployeeTaskSummary:
+    properties:
+      completed_tasks:
+        type: integer
+      employee_id:
+        type: string
+      employee_name:
+        type: string
+      in_progress_tasks:
+        type: integer
+      pending_tasks:
+        type: integer
+      total_tasks:
+        type: integer
+    type: object
+  dtos.GetUserOutput:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  dtos.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dtos.RegisterUserInput:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      role:
+        enum:
+        - employee
+        - employer
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - role
+    type: object
+  dtos.UpdateTaskStatusInput:
+    properties:
+      new_status:
+        allOf:
+        - $ref: '#/definitions/task.Status'
+        enum:
+        - pending
+        - in_progress
+        - completed
+      task_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - new_status
+    - task_id
+    - user_id
+    type: object
+  dtos.UpdateUserInput:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - id
+    type: object
+  task.Status:
+    enum:
+    - pending
+    - in_progress
+    - completed
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusInProgress
+    - StatusCompleted
+  task.Task:
+    properties:
+      assignee_id:
+        type: string
+      created_at:
+        type: string
+      creator_id:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/task.Status'
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  user.Role:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - Unknown
+    - Employee
+    - Employer
+  user.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/user.Role'
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Task Management API
+  title: Task Management API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login to the system
+      parameters:
+      - description: Login input
+        in: body
+        name: loginInput
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login response
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user
+      parameters:
+      - description: Register user input
+        in: body
+        name: registerUserInput
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RegisterUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Register response
+          schema:
+            $ref: '#/definitions/dtos.GetUserOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Register User
+      tags:
+      - auth
+  /tasks:
+    get:
+      consumes:
+      - application/json
+      description: List all tasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List tasks response
+          schema:
+            items:
+              $ref: '#/definitions/task.Task'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List Tasks
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      description: Create a new task
+      parameters:
+      - description: Create task input
+        in: body
+        name: createTaskInput
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateTaskInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Create task response
+          schema:
+            $ref: '#/definitions/task.Task'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Task
+      tags:
+      - tasks
+  /tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a task by ID
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Delete task response
+          schema:
+            $ref: '#/definitions/task.Task'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete Task
+      tags:
+      - tasks
+    get:
+      consumes:
+      - application/json
+      description: Get a task by ID
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get task response
+          schema:
+            $ref: '#/definitions/task.Task'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get Task
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: Update a task by ID
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update task input
+        in: body
+        name: updateTaskInput
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateTaskStatusInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update task response
+          schema:
+            $ref: '#/definitions/task.Task'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update Task
+      tags:
+      - tasks
+  /tasks/employee/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get tasks assigned to an employee
+      parameters:
+      - description: Employee ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get employee tasks response
+          schema:
+            items:
+              $ref: '#/definitions/task.Task'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get Employee Tasks
+      tags:
+      - tasks
+  /tasks/summary:
+    get:
+      consumes:
+      - application/json
+      description: Get summary of tasks by employee
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get summary by employee response
+          schema:
+            items:
+              $ref: '#/definitions/dtos.EmployeeTaskSummary'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get Summary By Employee
+      tags:
+      - tasks
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: List all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List users response
+          schema:
+            items:
+              $ref: '#/definitions/user.User'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List Users
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Get user response
+          schema:
+            $ref: '#/definitions/user.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get User
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update user input
+        in: body
+        name: updateUserInput
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update user response
+          schema:
+            $ref: '#/definitions/user.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update User
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

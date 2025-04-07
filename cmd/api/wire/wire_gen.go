@@ -10,6 +10,7 @@ import (
 	"github.com/personal/task-management/config"
 	"github.com/personal/task-management/internal/delivery/rest/handler"
 	"github.com/personal/task-management/internal/delivery/rest/middleware"
+	"github.com/personal/task-management/internal/delivery/websocket"
 	"github.com/personal/task-management/internal/repositories/postgres"
 	"github.com/personal/task-management/internal/server"
 	"github.com/personal/task-management/internal/usecase"
@@ -37,14 +38,18 @@ func NewWire() (*app.App, func(), error) {
 	userService := usecase.NewUserService(userRepository, hasher, jwtTokenServicer)
 	userHandler := handler.NewUserHandler(userService)
 	taskRepository := postgres.NewPostgresTaskRepository(gormDB)
-	taskService := usecase.NewTaskService(taskRepository, userRepository)
+	chatRepository := postgres.NewChatRepository(gormDB)
+	webSocketService := usecase.NewWebSocketService(chatRepository)
+	taskService := usecase.NewTaskService(taskRepository, userRepository, webSocketService)
 	taskHandler := handler.NewTaskHandler(taskService)
 	authHandler := handler.NewAuthHandler(userService)
 	casbinRBACService, err := middleware.NewCasbinRBACService(viper, gormDB)
 	if err != nil {
 		return nil, nil, err
 	}
-	httpServer := server.NewHTTPServer(viper, userHandler, taskHandler, authHandler, casbinRBACService)
+	websocketHandler := websocket.NewHandler(webSocketService, jwtTokenServicer)
+	chatHandler := handler.NewChatHandler(webSocketService, jwtTokenServicer)
+	httpServer := server.NewHTTPServer(viper, userHandler, taskHandler, authHandler, casbinRBACService, websocketHandler, chatHandler)
 	appApp, cleanup, err := newApp(httpServer)
 	if err != nil {
 		return nil, nil, err

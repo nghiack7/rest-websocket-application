@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -71,10 +72,39 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} apperrors.AppError "Internal Server Error"
 // @Router /tasks [get]
 func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
-	var input dtos.GetTasksWithFilterInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		apperrors.WriteError(w, apperrors.NewBadRequestError(err.Error()))
+	// user id from context
+	var userID uuid.UUID
+	if user, ok := r.Context().Value("user").(*jwt.UserClaims); ok {
+		userID = user.UserID
+	} else {
+		apperrors.WriteError(w, apperrors.NewBadRequestError("User not found in context"))
 		return
+	}
+	limit := r.URL.Query().Get("limit")
+	if limit == "" {
+		limit = "10"
+	}
+	offset := r.URL.Query().Get("offset")
+	if offset == "" {
+		offset = "0"
+	}
+	limitInt, err := strconv.Atoi(limit)
+	if err != nil {
+		apperrors.WriteError(w, apperrors.NewBadRequestError("Invalid limit"))
+		return
+	}
+	offsetInt, err := strconv.Atoi(offset)
+	if err != nil {
+		apperrors.WriteError(w, apperrors.NewBadRequestError("Invalid offset"))
+		return
+	}
+
+	input := dtos.GetTasksWithFilterInput{
+		UserID: userID,
+		Filter: dtos.TaskFilter{
+			Limit:  limitInt,
+			Offset: offsetInt,
+		},
 	}
 
 	tasks, err := h.taskService.GetTasksWithFilter(r.Context(), input)

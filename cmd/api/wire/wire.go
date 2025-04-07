@@ -11,6 +11,7 @@ import (
 	"github.com/personal/task-management/config"
 	api "github.com/personal/task-management/internal/delivery/rest/handler"
 	"github.com/personal/task-management/internal/delivery/rest/middleware"
+	"github.com/personal/task-management/internal/delivery/websocket"
 	"github.com/personal/task-management/internal/repositories/postgres"
 	internalServer "github.com/personal/task-management/internal/server"
 	"github.com/personal/task-management/internal/usecase"
@@ -28,13 +29,17 @@ func NewWire() (*app.App, func(), error) {
 		loadGormDB,
 		postgres.NewPostgresUserRepository,
 		postgres.NewPostgresTaskRepository,
+		postgres.NewChatRepository,
 		loadHasher,
 		jwt.NewJWTTokenService,
 		usecase.NewUserService,
 		usecase.NewTaskService,
+		usecase.NewWebSocketService,
 		api.NewUserHandler,
 		api.NewTaskHandler,
 		api.NewAuthHandler,
+		api.NewChatHandler,
+		websocket.NewHandler,
 		middleware.NewCasbinRBACService,
 		internalServer.NewHTTPServer,
 		newApp,

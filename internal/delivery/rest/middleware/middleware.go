@@ -89,7 +89,7 @@ func AuthorizationMiddleware(jwtService jwt.JWTTokenServicer, rbacService Casbin
 
 			// Apply resource filtering based on role
 			rbacService.ApplyResourceFilter(r, userRole, claims.UserID)
-
+			// store userID in context
 			next.ServeHTTP(w, r)
 		})
 	}

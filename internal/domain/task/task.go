@@ -16,7 +16,13 @@ const (
 	StatusInProgress Status = "in_progress"
 	// StatusCompleted represents a task that has been completed
 	StatusCompleted Status = "completed"
+	// StatusDeleted represents a task that has been deleted
+	StatusDeleted Status = "deleted"
 )
+
+func (s Status) String() string {
+	return string(s)
+}
 
 // Task represents a task in the system
 type Task struct {

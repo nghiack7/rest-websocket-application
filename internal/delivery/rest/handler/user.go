@@ -162,9 +162,11 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	var usersResponse []map[string]interface{}
 	for _, u := range users {
 		usersResponse = append(usersResponse, map[string]interface{}{
-			"id":    u.ID,
-			"email": u.Email,
-			"name":  u.Name,
+			"id":     u.ID,
+			"email":  u.Email,
+			"name":   u.Name,
+			"role":   u.Role,
+			"status": u.Status,
 		})
 	}
 

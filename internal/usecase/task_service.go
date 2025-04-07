@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/personal/task-management/internal/delivery/rest/dtos"
 	"github.com/personal/task-management/internal/domain/task"
 	repository "github.com/personal/task-management/internal/repositories"
@@ -21,15 +23,17 @@ type TaskService interface {
 
 // TaskService handles task-related operations and business logic
 type taskService struct {
-	taskRepo repository.TaskRepository
-	userRepo repository.UserRepository
+	taskRepo  repository.TaskRepository
+	userRepo  repository.UserRepository
+	wsService WebSocketService
 }
 
 // NewTaskService creates a new instance of TaskService
-func NewTaskService(taskRepo repository.TaskRepository, userRepo repository.UserRepository) TaskService {
+func NewTaskService(taskRepo repository.TaskRepository, userRepo repository.UserRepository, wsService WebSocketService) TaskService {
 	return &taskService{
-		taskRepo: taskRepo,
-		userRepo: userRepo,
+		taskRepo:  taskRepo,
+		userRepo:  userRepo,
+		wsService: wsService,
 	}
 }
 
@@ -58,7 +62,7 @@ func (s *taskService) CreateTask(ctx context.Context, input dtos.CreateTaskInput
 	}
 
 	if !assignee.IsEmployee() {
-		return nil, task.ErrUnauthorized // Can only assign tasks to employees
+		return nil, task.ErrUnauthorized
 	}
 
 	// Create task
@@ -78,6 +82,8 @@ func (s *taskService) CreateTask(ctx context.Context, input dtos.CreateTaskInput
 		return nil, err
 	}
 
+	// Broadcast task creation notification
+	s.wsService.SendTaskUpdateNotification(newTask.AssigneeID.String(), newTask.ID.String(), "Task created: "+newTask.Title, newTask.Status.String())
 	return newTask, nil
 }
 
@@ -115,6 +121,8 @@ func (s *taskService) UpdateTaskStatus(ctx context.Context, input dtos.UpdateTas
 		return nil, err
 	}
 
+	// Broadcast task update notification
+	s.wsService.SendTaskUpdateNotification(t.AssigneeID.String(), t.ID.String(), "Task updated: "+t.Title, t.Status.String())
 	return t, nil
 }
 
@@ -172,12 +180,16 @@ func (s *taskService) GetTasksWithFilter(ctx context.Context, input dtos.GetTask
 		}
 	}
 	filter := repository.TaskFilter{
-		AssigneeID: &input.Filter.AssigneeID,
-		Status:     &input.Filter.Status,
-		Limit:      input.Filter.Limit,
-		Offset:     input.Filter.Offset,
-		SortBy:     input.Filter.SortBy,
-		SortOrder:  input.Filter.SortOrder,
+		Limit:     input.Filter.Limit,
+		Offset:    input.Filter.Offset,
+		SortBy:    input.Filter.SortBy,
+		SortOrder: input.Filter.SortOrder,
+	}
+	if input.Filter.Status != "" {
+		filter.Status = &input.Filter.Status
+	}
+	if input.Filter.AssigneeID != uuid.Nil {
+		filter.AssigneeID = &input.Filter.AssigneeID
 	}
 
 	// Get tasks with filter
@@ -253,5 +265,11 @@ func (s *taskService) DeleteTask(ctx context.Context, input dtos.DeleteTaskInput
 	}
 
 	// Delete task
-	return s.taskRepo.Delete(ctx, input.TaskID)
+	if err := s.taskRepo.Delete(ctx, input.TaskID); err != nil {
+		return err
+	}
+
+	// Broadcast task deletion notification
+	s.wsService.SendTaskUpdateNotification(u.ID.String(), input.TaskID.String(), fmt.Sprintf("Task deleted: %s", input.TaskID), task.StatusDeleted.String())
+	return nil
 }

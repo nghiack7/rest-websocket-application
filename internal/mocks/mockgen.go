@@ -7,3 +7,4 @@ package mocks
 //go:generate mockgen -destination=./task_service.go -package=mocks github.com/personal/task-management/internal/usecase TaskService
 //go:generate mockgen -destination=./casbin_rbac_service.go -package=mocks github.com/personal/task-management/internal/delivery/rest/middleware CasbinRBACService
 //go:generate mockgen -destination=./task_repository.go -package=mocks github.com/personal/task-management/internal/repositories TaskRepository
+//go:generate mockgen -destination=./websocket_service.go -package=mocks github.com/personal/task-management/internal/usecase WebSocketService

@@ -23,6 +23,25 @@ definitions:
     - Forbidden
     - Conflict
     - InternalServer
+  dtos.CreateDirectRoomRequest:
+    properties:
+      user_id_2:
+        example: user-123
+        type: string
+    type: object
+  dtos.CreateGroupRoomRequest:
+    properties:
+      name:
+        example: Team Chat
+        type: string
+      user_ids:
+        example:
+        - '["user-123"'
+        - ' "user-456"]'
+        items:
+          type: string
+        type: array
+    type: object
   dtos.CreateTaskInput:
     properties:
       assignee_id:
@@ -99,6 +118,36 @@ definitions:
     - password
     - role
     type: object
+  dtos.SendMessageRequest:
+    properties:
+      content:
+        example: Hello, world!
+        type: string
+      file_url:
+        example: https://example.com/file.pdf
+        type: string
+      type:
+        enum:
+        - text
+        - file
+        - image
+        - video
+        - audio
+        example: text
+        type: string
+    type: object
+  dtos.UpdateRoomRequest:
+    properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      description:
+        example: Updated room description
+        type: string
+      name:
+        example: New Room Name
+        type: string
+    type: object
   dtos.UpdateTaskStatusInput:
     properties:
       new_status:
@@ -133,11 +182,13 @@ definitions:
     - pending
     - in_progress
     - completed
+    - deleted
     type: string
     x-enum-varnames:
     - StatusPending
     - StatusInProgress
     - StatusCompleted
+    - StatusDeleted
   task.Task:
     properties:
       assignee_id:
@@ -169,6 +220,14 @@ definitions:
     - Unknown
     - Employee
     - Employer
+  user.Status:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - StatusActive
+    - StatusInactive
   user.User:
     properties:
       created_at:
@@ -181,6 +240,8 @@ definitions:
         type: string
       role:
         $ref: '#/definitions/user.Role'
+      status:
+        $ref: '#/definitions/user.Status'
       updated_at:
         type: string
     type: object
@@ -261,6 +322,429 @@ paths:
       summary: Register User
       tags:
       - auth
+  /chat/direct:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new direct chat room between the authenticated user and
+        another user
+      parameters:
+      - description: Create Direct Room Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateDirectRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room created successfully
+          schema: {}
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Create a direct chat room between two users
+      tags:
+      - chat
+  /chat/group:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new group chat room with multiple users
+      parameters:
+      - description: Create Group Room Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.CreateGroupRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room created successfully
+          schema: {}
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Create a group chat room
+      tags:
+      - chat
+  /chat/rooms:
+    get:
+      description: Returns a list of all chat rooms the authenticated user is a member
+        of
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of chat rooms
+          schema:
+            items: {}
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: List all chat rooms for the authenticated user
+      tags:
+      - chat
+  /chat/rooms/{roomId}:
+    put:
+      consumes:
+      - application/json
+      description: Updates the name, description, or avatar of a chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Update Room Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.UpdateRoomRequest'
+      responses:
+        "200":
+          description: Room updated successfully
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Update chat room information
+      tags:
+      - chat
+  /chat/rooms/{roomId}/archive:
+    post:
+      description: Archives a specific chat room for the authenticated user
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Room archived successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Archive a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/history:
+    get:
+      description: Retrieves the message history for a specific chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - default: 50
+        description: Number of messages to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of messages to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room history
+          schema: {}
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get chat room history
+      tags:
+      - chat
+  /chat/rooms/{roomId}/join:
+    post:
+      description: Adds the authenticated user to a chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully joined room
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Join a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/leave:
+    post:
+      description: Removes the authenticated user from a chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successfully left room
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Leave a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/messages:
+    get:
+      description: Retrieves messages from a specific chat room with pagination
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - default: 50
+        description: Number of messages to return
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of messages to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of messages
+          schema:
+            items: {}
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get messages from a chat room
+      tags:
+      - chat
+    post:
+      consumes:
+      - application/json
+      description: Sends a message to a specific chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Send Message Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.SendMessageRequest'
+      responses:
+        "200":
+          description: Message sent successfully
+        "400":
+          description: Invalid request body
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Send a message to a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/messages/{messageId}/pin:
+    post:
+      description: Pins a specific message in a chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Message ID
+        in: path
+        name: messageId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Message pinned successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Pin a message in a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/messages/{messageId}/read:
+    post:
+      description: Marks a specific message as read by the authenticated user
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Message ID
+        in: path
+        name: messageId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Message marked as read
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Mark a message as read
+      tags:
+      - chat
+  /chat/rooms/{roomId}/messages/{messageId}/unpin:
+    post:
+      description: Unpins a specific message in a chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      - description: Message ID
+        in: path
+        name: messageId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Message unpinned successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Unpin a message in a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/mute:
+    post:
+      description: Mutes notifications for a specific chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Room muted successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Mute a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/unarchive:
+    post:
+      description: Unarchives a specific chat room for the authenticated user
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Room unarchived successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Unarchive a chat room
+      tags:
+      - chat
+  /chat/rooms/{roomId}/unmute:
+    post:
+      description: Unmutes notifications for a specific chat room
+      parameters:
+      - description: Room ID
+        in: path
+        name: roomId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Room unmuted successfully
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Unmute a chat room
+      tags:
+      - chat
   /tasks:
     get:
       consumes:
